@@ -168,7 +168,7 @@ const Home = () => {
             <span className="font-orbitron font-bold text-primary">PACECON Technosys</span>
           </div>
           <p className="text-muted-foreground">
-            © 2024 PACECON Technosys. All rights reserved.
+            © 2025 PACECON Technosys. All rights reserved.
           </p>
         </div>
       </footer>

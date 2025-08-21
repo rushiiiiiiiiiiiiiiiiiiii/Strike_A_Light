@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -20,6 +20,9 @@ import { Trophy, Target, Clock, BarChart3, Download, Share2 } from 'lucide-react
 import DashboardSidebar from '@/components/DashboardSidebar';
 import { useMockData } from '@/hooks/useMockData';
 import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 const IndividualDashboard = () => {
   const { user } = useAuth();
@@ -48,6 +51,28 @@ const IndividualDashboard = () => {
     { name: 'Accurate', value: avgAccuracy, color: '#39FF14' },
     { name: 'Missed', value: 100 - avgAccuracy, color: '#FF4444' }
   ];
+  const [data, setData] = useState(null)
+  const id = localStorage.getItem('id')
+// Institution details
+  useEffect(() => {
+    const getdata = async () => {
+      try {
+        const studata = await axios.get(
+          `http://192.168.0.108:8000/userdata/${id}`
+        );
+        setData(studata.data);
+        console.log(studata.data)
+      } catch (err) {
+        console.error("Error fetching Institution Data:", err);
+        // toast({
+        //   title: "Error",
+        //   description: "Failed to fetch Institution Data.",
+        //   variant: "destructive",
+        // });
+      }
+    };
+    getdata();
+  }, [id]);
 
   return (
     <SidebarProvider>
@@ -64,7 +89,7 @@ const IndividualDashboard = () => {
                   <h1 className="font-orbitron text-2xl font-bold text-primary">
                     Individual Dashboard
                   </h1>
-                  <p className="text-muted-foreground">Welcome back, {user?.name}</p>
+                  <p className="text-muted-foreground">Welcome back, {data?.name}</p>
                 </div>
               </div>
               <Button className="bg-gradient-primary hover:shadow-glow gap-2">

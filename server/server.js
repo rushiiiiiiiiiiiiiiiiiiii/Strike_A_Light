@@ -128,7 +128,8 @@ app.get("/students/:institutionId", (req, res) => {
     res.json(rows);
   });
 });
-app.get("/students/:id", (req, res) => {
+
+app.get("/studentsdata/:id", (req, res) => {
   const  id  = req.params.id;
   const sql = "SELECT * FROM students WHERE id = ?";
   db.query(sql, [id], (err, rows) => {
@@ -142,7 +143,20 @@ app.get("/students/:id", (req, res) => {
     res.json(rows[0]); // ✅ send single student
   });
 });
-
+app.get("/userdata/:id", (req, res) => {
+  const  id  = req.params.id;
+  const sql = "SELECT * FROM individual_users WHERE id = ?";
+  db.query(sql, [id], (err, rows) => {
+    if (err) {
+      console.error("Error fetching users:", err);
+      return res.status(500).json({ error: "Failed to fetch users" });
+    }
+    if (!rows.length) {
+      return res.status(404).json({ error: "users not found" });
+    }
+    res.json(rows[0]); // ✅ send single student
+  });
+});
 // ---------------- MACHINES ----------------
 
 app.get('/machines/:institutionId', (req, res) => {

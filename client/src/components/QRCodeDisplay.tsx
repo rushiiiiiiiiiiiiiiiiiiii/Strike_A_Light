@@ -6,10 +6,10 @@ import { Download, Share2 } from 'lucide-react';
 
 interface QRCodeDisplayProps {
   data: {
-    id: string;
     name: string;
     type: 'individual' | 'student';
-    assignedPlays?: number;
+    assignedPlays: number;   // 👈 required plays field
+    amountPaid?: number;
   };
 }
 
@@ -19,14 +19,15 @@ const QRCodeDisplay = ({ data }: QRCodeDisplayProps) => {
   useEffect(() => {
     const generateQR = async () => {
       try {
+        // 👇 encode plays instead of id
         const qrData = JSON.stringify({
-          id: data.id,
+          plays: data.assignedPlays,
           name: data.name,
           type: data.type,
-          assignedPlays: data.assignedPlays || 0,
+          amountPaid: data.amountPaid || 0,
           timestamp: Date.now(),
         });
-        
+
         const url = await QRCode.toDataURL(qrData, {
           width: 300,
           margin: 2,
@@ -35,7 +36,7 @@ const QRCodeDisplay = ({ data }: QRCodeDisplayProps) => {
             light: '#1A1B23',
           },
         });
-        
+
         setQrCodeUrl(url);
       } catch (error) {
         console.error('Error generating QR code:', error);
@@ -80,27 +81,29 @@ const QRCodeDisplay = ({ data }: QRCodeDisplayProps) => {
         <div className="flex justify-center">
           {qrCodeUrl && (
             <div className="p-4 bg-background rounded-lg border border-primary/30">
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code" 
+              <img
+                src={qrCodeUrl}
+                alt="QR Code"
                 className="w-64 h-64 animate-glow-pulse"
               />
             </div>
           )}
         </div>
-        
+
         <div className="text-center space-y-2">
           <p className="font-orbitron text-lg text-primary">{data.name}</p>
-          <p className="text-sm text-muted-foreground">ID: {data.id}</p>
-          {data.assignedPlays && (
-            <p className="text-sm text-secondary">
-              Assigned Plays: {data.assignedPlays}
+          <p className="text-sm text-secondary">
+            Assigned Plays: <span className="font-bold">{data.assignedPlays}</span>
+          </p>
+          {data.amountPaid !== undefined && (
+            <p className="text-xs text-muted-foreground">
+              Amount Paid: ₹{data.amountPaid}
             </p>
           )}
         </div>
-        
+
         <div className="flex gap-2 justify-center">
-          <Button 
+          <Button
             onClick={handleDownload}
             variant="outline"
             size="sm"
@@ -110,7 +113,7 @@ const QRCodeDisplay = ({ data }: QRCodeDisplayProps) => {
             Download
           </Button>
           {navigator.share && (
-            <Button 
+            <Button
               onClick={handleShare}
               variant="outline"
               size="sm"
