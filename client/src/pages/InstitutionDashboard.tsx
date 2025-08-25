@@ -9,9 +9,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { UserPlus, QrCode, Download, Trash2, Building } from "lucide-react";
+import {
+  UserPlus,
+  QrCode,
+  Trash2,
+  Building2Icon,
+} from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
 import DashboardSidebar from "@/components/DashboardSidebar";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,9 +43,12 @@ const InstitutionDashboard = () => {
 
   const [students, setStudents] = useState<any[]>([]);
   const [data, setData] = useState<any>(null);
+
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showQRCode, setShowQRCode] = useState<any>(null);
   const [qrFormStudent, setQrFormStudent] = useState<any>(null);
+  const [deleteConfirmStudent, setDeleteConfirmStudent] = useState<any>(null);
+
   const [newStudent, setNewStudent] = useState({
     name: "",
     email: "",
@@ -36,7 +56,8 @@ const InstitutionDashboard = () => {
     division: "",
     rollNumber: "",
   });
-  const [qrForm, setQrForm] = useState({ plays: 0, amount: 0 });
+
+  const [qrForm, setQrForm] = useState({ plays: "", amount: "" });
 
   const institutionId = localStorage.getItem("id");
 
@@ -45,7 +66,7 @@ const InstitutionDashboard = () => {
     try {
       if (!institutionId) return;
       const res = await axios.get(
-        `http://192.168.0.108:8000/students/${institutionId}`
+        `http://192.168.0.116:8000/students/${institutionId}`
       );
       setStudents(res.data);
     } catch (error) {
@@ -61,8 +82,6 @@ const InstitutionDashboard = () => {
   useEffect(() => {
     fetchStudents();
   }, [user]);
-
-  
 
   // Add student
   const handleAddStudent = async () => {
@@ -82,7 +101,7 @@ const InstitutionDashboard = () => {
     }
 
     try {
-      const res = await axios.post(`http://192.168.0.108:8000/students`, {
+      const res = await axios.post(`http://192.168.0.116:8000/students`, {
         ...newStudent,
         institutionId: institutionId || "inst1",
       });
@@ -110,14 +129,21 @@ const InstitutionDashboard = () => {
     }
   };
 
-  // Remove student
-  const handleRemoveStudent = async (studentId: string) => {
+  // Delete student
+  const confirmRemoveStudent = (student: any) => {
+    setDeleteConfirmStudent(student);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmStudent) return;
     try {
-      await axios.delete(`http://192.168.0.108:8000/students/${studentId}`);
-      setStudents(students.filter((s) => s.id !== studentId));
+      await axios.delete(
+        `http://192.168.0.116:8000/students/${deleteConfirmStudent.id}`
+      );
+      setStudents(students.filter((s) => s.id !== deleteConfirmStudent.id));
       toast({
         title: "Student Removed",
-        description: "Student has been removed from the institution.",
+        description: `${deleteConfirmStudent.name} has been removed.`,
       });
     } catch (error) {
       console.error("Error removing student:", error);
@@ -127,23 +153,25 @@ const InstitutionDashboard = () => {
         variant: "destructive",
       });
     }
+    setDeleteConfirmStudent(null);
   };
 
   // QR
   const openGenerateQR = (student: any) => {
     setQrFormStudent(student);
-    setQrForm({ plays: 0, amount: 0 });
+    setQrForm({ plays: "", amount: "" });
   };
 
   const handleGenerateQR = () => {
     if (!qrFormStudent) return;
 
     setShowQRCode({
-      plays: qrForm.plays,          // 👈 plays instead of id
+      id: qrFormStudent.id,
       name: qrFormStudent.name,
       email: qrFormStudent.email,
       type: "student",
-      amountPaid: qrForm.amount,
+      assignedPlays: Number(qrForm.plays) || 0,
+      amountPaid: Number(qrForm.amount) || 0,
     });
 
     setQrFormStudent(null);
@@ -163,16 +191,14 @@ const InstitutionDashboard = () => {
     return daysSinceLastPlay <= 7;
   }).length;
 
-
   // Institution details
   useEffect(() => {
     const getdata = async () => {
       try {
         const studata = await axios.get(
-          `http://192.168.0.108:8000/instdata/${institutionId}`
+          `http://192.168.0.116:8000/instdata/${institutionId}`
         );
         setData(studata.data[0]);
-        console.log(studata.data)
       } catch (err) {
         console.error("Error fetching Institution Data:", err);
         toast({
@@ -184,6 +210,18 @@ const InstitutionDashboard = () => {
     };
     getdata();
   }, []);
+
+  // Group students by Standard & Division
+  const groupedStudents = students.reduce((acc, student) => {
+    const stdKey = `Std ${student.standard}`;
+    const divKey = `Div ${student.division || "-"}`;
+
+    if (!acc[stdKey]) acc[stdKey] = {};
+    if (!acc[stdKey][divKey]) acc[stdKey][divKey] = [];
+    acc[stdKey][divKey].push(student);
+
+    return acc;
+  }, {} as Record<string, Record<string, any[]>>);
 
   return (
     <SidebarProvider>
@@ -198,7 +236,7 @@ const InstitutionDashboard = () => {
                 <SidebarTrigger />
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gradient-secondary rounded-xl flex items-center justify-center shadow-md">
-                    <Building className="w-6 h-6 text-background" />
+                    <Building2Icon className="w-6 h-6 text-background" />
                   </div>
                   <div>
                     <h1 className="font-orbitron text-2xl sm:text-3xl font-bold text-primary">
@@ -217,13 +255,6 @@ const InstitutionDashboard = () => {
                 >
                   <UserPlus className="w-4 h-4" />
                   Add Student
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-2 w-full sm:w-auto border-primary/40"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Report
                 </Button>
               </div>
             </div>
@@ -264,63 +295,72 @@ const InstitutionDashboard = () => {
               </Card>
             </div>
 
-            {/* Students Table */}
+            {/* Students Grouped */}
             <Card className="bg-gradient-card border-primary/20">
               <CardHeader>
                 <CardTitle className="font-orbitron text-xl text-primary">
-                  Students
+                  Students by Class
                 </CardTitle>
                 <CardDescription>
-                  Manage your students and generate QR codes
+                  Manage students grouped by Standard & Division
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {students.map((student) => (
-                    <div
-                      key={student.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-background/30 rounded-lg border border-primary/10 hover:border-primary/30 transition"
-                    >
-                      <div className="flex-1">
-                        <h3 className="font-medium text-primary">
-                          {student.name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {student.email}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Std {student.standard} - Div {student.division} | Roll{" "}
-                          {student.roll_number}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openGenerateQR(student)}
-                        >
-                          <QrCode className="w-4 h-4" /> QR
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() =>
-                            navigate(`/students/${student.id}`)
-                          }
-                        >
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleRemoveStudent(student.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                <Accordion type="multiple" className="space-y-4">
+                  {Object.entries(groupedStudents).map(([std, divisions]) => (
+                    <AccordionItem key={std} value={std}>
+                      <AccordionTrigger className="font-bold text-primary">
+                        {std}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {Object.entries(divisions).map(([div, studs]) => (
+                          <div key={div} className="mb-4">
+                            <h4 className="font-semibold text-secondary mb-2">{div}</h4>
+                            <div className="space-y-2">
+                              {studs.map((student) => (
+                                <div
+                                  key={student.id}
+                                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-background/30 rounded-lg border border-primary/10 hover:border-primary/30 transition"
+                                >
+                                  <div>
+                                    <p className="font-medium text-primary">{student.name}</p>
+                                    <p className="text-sm text-muted-foreground">{student.email}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Roll {student.roll_number}
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => openGenerateQR(student)}
+                                    >
+                                      <QrCode className="w-4 h-4" /> QR
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => navigate(`/students/${student.id}`)}
+                                    >
+                                      View
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => confirmRemoveStudent(student)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </div>
+                </Accordion>
               </CardContent>
             </Card>
           </div>
@@ -337,37 +377,27 @@ const InstitutionDashboard = () => {
             <Label>Student Name</Label>
             <Input
               value={newStudent.name}
-              onChange={(e) =>
-                setNewStudent({ ...newStudent, name: e.target.value })
-              }
+              onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
             />
             <Label>Email</Label>
             <Input
               value={newStudent.email}
-              onChange={(e) =>
-                setNewStudent({ ...newStudent, email: e.target.value })
-              }
+              onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
             />
             <Label>Standard</Label>
             <Input
               value={newStudent.standard}
-              onChange={(e) =>
-                setNewStudent({ ...newStudent, standard: e.target.value })
-              }
+              onChange={(e) => setNewStudent({ ...newStudent, standard: e.target.value })}
             />
             <Label>Division</Label>
             <Input
               value={newStudent.division}
-              onChange={(e) =>
-                setNewStudent({ ...newStudent, division: e.target.value })
-              }
+              onChange={(e) => setNewStudent({ ...newStudent, division: e.target.value })}
             />
             <Label>Roll Number</Label>
             <Input
               value={newStudent.rollNumber}
-              onChange={(e) =>
-                setNewStudent({ ...newStudent, rollNumber: e.target.value })
-              }
+              onChange={(e) => setNewStudent({ ...newStudent, rollNumber: e.target.value })}
             />
             <Button
               onClick={handleAddStudent}
@@ -383,26 +413,20 @@ const InstitutionDashboard = () => {
       <Dialog open={!!qrFormStudent} onOpenChange={() => setQrFormStudent(null)}>
         <DialogContent className="bg-gradient-card border-primary/20">
           <DialogHeader>
-            <DialogTitle>
-              Generate QR for {qrFormStudent?.name}
-            </DialogTitle>
+            <DialogTitle>Generate QR for {qrFormStudent?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Label>Number of Plays</Label>
             <Input
               type="number"
               value={qrForm.plays}
-              onChange={(e) =>
-                setQrForm({ ...qrForm, plays: parseInt(e.target.value) || 0 }) // ✅ fix for NaN
-              }
+              onChange={(e) => setQrForm({ ...qrForm, plays: parseInt(e.target.value) || 0 })}
             />
             <Label>Amount Paid</Label>
             <Input
               type="number"
               value={qrForm.amount}
-              onChange={(e) =>
-                setQrForm({ ...qrForm, amount: parseInt(e.target.value) || 0 })
-              }
+              onChange={(e) => setQrForm({ ...qrForm, amount: parseInt(e.target.value) || 0 })}
             />
             <Button
               onClick={handleGenerateQR}
@@ -425,6 +449,29 @@ const InstitutionDashboard = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Dialog
+        open={!!deleteConfirmStudent}
+        onOpenChange={() => setDeleteConfirmStudent(null)}
+      >
+        <DialogContent className="bg-gradient-card border-primary/20">
+          <DialogHeader>
+            <DialogTitle>Delete {deleteConfirmStudent?.name}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to remove this student? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmStudent(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 };

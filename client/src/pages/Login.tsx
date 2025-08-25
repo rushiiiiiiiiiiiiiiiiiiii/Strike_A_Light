@@ -1,77 +1,88 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, Eye, EyeOff } from 'lucide-react';
-import { UserRole } from '@/types/auth';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Zap, Eye, EyeOff } from "lucide-react";
+import { UserRole } from "@/types/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('individual');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("individual");
   const [showPassword, setShowPassword] = useState(false);
   const { isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    const res = await fetch('http://192.168.0.108:8000/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, role }),
-    });
-
-    let data;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      data = await res.json();
-    } catch {
-      throw new Error('Invalid server response');
-    }
+      const res = await fetch("http://192.168.0.116:8000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, role }),
+      });
 
-    if (res.ok && data.success) {
-  // Store role and user info in localStorage
-  localStorage.setItem("userEmail", data.user?.email || "");
-  localStorage.setItem("id", data.user?.id || "");
-  localStorage.setItem("role", data.role);   // ✅ set role
-  localStorage.setItem("isAuthenticated", "true");  // ✅ mark as logged in
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
-  toast({
-    title: "Login Successful",
-    description: `Welcome back, ${data.user?.name || 'User'}!`,
-  });
+      if (res.ok && data.success) {
+        // Store role and user info in localStorage
+        localStorage.setItem("userEmail", data.user?.email || "");
+        localStorage.setItem("id", data.user?.id || "");
+        localStorage.setItem("role", data.role); // ✅ set role
+        localStorage.setItem("isAuthenticated", "true"); // ✅ mark as logged in
 
-  // Redirect based on role
-  if (data.role === 'individual') {
-    navigate('/dashboard/individual');
-  } else if (data.role === 'institution') {
-    navigate('/dashboard/institution');
-  } else if (data.role === 'super_admin') {
-    navigate('/dashboard/super-admin');
-  }
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${data.user?.name || "User"}!`,
+        });
+
+        // Redirect based on role
+       if (data.role === 'individual') {
+  navigate('/dashboard/individual');
+} else if (data.role === 'institution') {
+  navigate('/dashboard/institution');
+} else if (data.role === 'super_admin') {
+  navigate('/dashboard/super-admin');
 }
- else {
+
+      } else {
+        toast({
+          title: "Login Failed",
+          description: data.error || "Invalid credentials.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Login Failed",
-        description: data.error || "Invalid credentials.",
+        title: "Login Error",
+        description: error.message || "Unexpected error.",
         variant: "destructive",
       });
     }
-  } catch (error) {
-    toast({
-      title: "Login Error",
-      description: error.message || "Unexpected error.",
-      variant: "destructive",
-    });
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
@@ -83,7 +94,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               <Zap className="w-7 h-7 text-background" />
             </div>
             <div className="text-left">
-              <h1 className="font-orbitron font-bold text-2xl text-primary">Strike A Light</h1>
+              <h1 className="font-orbitron font-bold text-2xl text-primary">
+                Strike A Light
+              </h1>
               <p className="text-sm text-muted-foreground">PACECON Technosys</p>
             </div>
           </Link>
@@ -91,7 +104,9 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         <Card className="bg-gradient-card border-primary/20 glow-effect">
           <CardHeader className="text-center">
-            <CardTitle className="font-orbitron text-2xl text-primary">Welcome Back</CardTitle>
+            <CardTitle className="font-orbitron text-2xl text-primary">
+              Welcome Back
+            </CardTitle>
             <CardDescription className="text-muted-foreground">
               Sign in to access your dashboard
             </CardDescription>
@@ -99,21 +114,29 @@ const handleSubmit = async (e: React.FormEvent) => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="role" className="font-montserrat">Login As</Label>
-                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
+                <Label htmlFor="role" className="font-montserrat">
+                  Login As
+                </Label>
+                <Select
+                  value={role}
+                  onValueChange={(value: UserRole) => setRole(value)}
+                >
                   <SelectTrigger className="bg-background/50 border-primary/30">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="individual">Individual User</SelectItem>
-                    <SelectItem value="institution">Institution Admin</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="institution">
+                      Institution Admin
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="font-montserrat">Email</Label>
+                <Label htmlFor="email" className="font-montserrat">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -126,7 +149,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="font-montserrat">Password</Label>
+                <Label htmlFor="password" className="font-montserrat">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -142,7 +167,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-primary"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -157,8 +186,11 @@ const handleSubmit = async (e: React.FormEvent) => {
 
               <div className="text-center">
                 <p className="text-muted-foreground">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-primary hover:text-secondary transition-colors">
+                  Don't have an account?{" "}
+                  <Link
+                    to="/register"
+                    className="text-primary hover:text-secondary transition-colors"
+                  >
                     Sign up here
                   </Link>
                 </p>
@@ -168,8 +200,8 @@ const handleSubmit = async (e: React.FormEvent) => {
         </Card>
 
         <div className="mt-6 text-center">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="text-muted-foreground hover:text-primary transition-colors"
           >
             ← Back to Home

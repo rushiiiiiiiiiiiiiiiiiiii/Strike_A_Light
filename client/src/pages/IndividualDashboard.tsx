@@ -11,18 +11,15 @@ import {
   Tooltip, 
   ResponsiveContainer,
   BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
+  Bar
 } from 'recharts';
-import { Trophy, Target, Clock, BarChart3, Download, Share2 } from 'lucide-react';
+import { Trophy, Target, Clock, BarChart3, Download } from 'lucide-react';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import { useMockData } from '@/hooks/useMockData';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
-import { toast } from 'sonner';
-import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const IndividualDashboard = () => {
   const { user } = useAuth();
@@ -35,6 +32,65 @@ const IndividualDashboard = () => {
   const avgReactionTime = (mockGameRecords.reduce((sum, record) => sum + record.reactionTime, 0) / totalPlays).toFixed(2);
   const avgAccuracy = Math.round(mockGameRecords.reduce((sum, record) => sum + record.accuracy, 0) / totalPlays);
 
+  const [data, setData] = useState<any>(null);
+  const id = localStorage.getItem('id');
+
+  // Fetch individual user details
+  useEffect(() => {
+    const getdata = async () => {
+      try {
+        const studata = await axios.get(`http://192.168.0.116:8000/userdata/${id}`);
+        setData(studata.data);
+        console.log(studata.data)
+      } catch (err) {
+        console.error("Error fetching User Data:", err);
+      }
+    };
+    getdata();
+  }, [id]);
+
+  // -------- Download PDF Report --------
+  const downloadReport = () => {
+    if (!data) return;
+
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("Individual Performance Report", 14, 20);
+
+    // User Info
+    doc.setFontSize(12);
+    doc.text(`Name: ${data.name}`, 14, 35);
+    doc.text(`Email: ${data.email}`, 14, 42);
+
+    // Stats Summary
+    doc.setFontSize(14);
+    doc.text("Stats Summary", 14, 60);
+    doc.setFontSize(12);
+    doc.text(`Total Plays: ${totalPlays}`, 14, 70);
+    doc.text(`Best Score: ${bestScore}`, 14, 78);
+    doc.text(`Avg Reaction Time: ${avgReactionTime}s`, 14, 86);
+    doc.text(`Accuracy: ${avgAccuracy}%`, 14, 94);
+
+    // Recent Game History
+    autoTable(doc, {
+      startY: 110,
+      head: [["Date", "Game Mode", "Score", "Accuracy", "Reaction Time"]],
+      body: mockGameRecords.slice(0, 10).map((r) => [
+        r.playedAt.toLocaleDateString(),
+        r.gameMode,
+        r.score,
+        r.accuracy + "%",
+        r.reactionTime + "s",
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [0, 212, 255] },
+    });
+
+    doc.save(`${data.name}_Report.pdf`);
+  };
+
   // Prepare chart data
   const reactionTimeData = performanceData.dates.map((date, index) => ({
     date,
@@ -43,36 +99,8 @@ const IndividualDashboard = () => {
 
   const gameModeChartData = gameModeStats.map(stat => ({
     mode: stat.mode.replace(' Mode', ''),
-    plays: stat.totalPlays,
     avgScore: stat.averageScore
   }));
-
-  const accuracyData = [
-    { name: 'Accurate', value: avgAccuracy, color: '#39FF14' },
-    { name: 'Missed', value: 100 - avgAccuracy, color: '#FF4444' }
-  ];
-  const [data, setData] = useState(null)
-  const id = localStorage.getItem('id')
-// Institution details
-  useEffect(() => {
-    const getdata = async () => {
-      try {
-        const studata = await axios.get(
-          `http://192.168.0.108:8000/userdata/${id}`
-        );
-        setData(studata.data);
-        console.log(studata.data)
-      } catch (err) {
-        console.error("Error fetching Institution Data:", err);
-        // toast({
-        //   title: "Error",
-        //   description: "Failed to fetch Institution Data.",
-        //   variant: "destructive",
-        // });
-      }
-    };
-    getdata();
-  }, [id]);
 
   return (
     <SidebarProvider>
@@ -92,7 +120,10 @@ const IndividualDashboard = () => {
                   <p className="text-muted-foreground">Welcome back, {data?.name}</p>
                 </div>
               </div>
-              <Button className="bg-gradient-primary hover:shadow-glow gap-2">
+              <Button 
+                onClick={downloadReport}
+                className="bg-gradient-primary hover:shadow-glow gap-2"
+              >
                 <Download className="w-4 h-4" />
                 Download Report
               </Button>
@@ -149,7 +180,7 @@ const IndividualDashboard = () => {
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Performance Trend */}
+              {/* Reaction Time Trend */}
               <Card className="bg-gradient-card border-primary/20">
                 <CardHeader>
                   <CardTitle className="font-orbitron text-primary">Reaction Time Trend</CardTitle>
@@ -206,10 +237,9 @@ const IndividualDashboard = () => {
               </Card>
             </div>
 
-            {/* Game History and Accuracy */}
-            <div className="grid grid-cols-1 lg:grid-cols gap-6">
-              {/* Game History */}
-              <Card className="lg:col-span-2 bg-gradient-card border-primary/20">
+            {/* Game History */}
+            <div className="grid grid-cols-1 gap-6">
+              <Card className="bg-gradient-card border-primary/20">
                 <CardHeader>
                   <CardTitle className="font-orbitron text-primary">Recent Games</CardTitle>
                   <CardDescription>Your latest game sessions</CardDescription>
@@ -239,51 +269,6 @@ const IndividualDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Accuracy Pie Chart */}
-              {/* <Card className="bg-gradient-card border-primary/20">
-                <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">Accuracy Split</CardTitle>
-                  <CardDescription>Hit vs miss ratio</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={accuracyData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {accuracyData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
-                          border: '1px solid #8B5CF6',
-                          borderRadius: '8px'
-                        }} 
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {accuracyData.map((entry, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {entry.name}: {entry.value}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card> */}
             </div>
           </div>
         </main>

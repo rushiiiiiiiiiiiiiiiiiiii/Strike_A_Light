@@ -1,382 +1,317 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { 
-  Users, 
-  Building, 
-  Trophy, 
-  TrendingUp, 
-  Search,
-  Download,
-  Settings,
-  Shield
-} from 'lucide-react';
-import DashboardSidebar from '@/components/DashboardSidebar';
-import { useMockData } from '@/hooks/useMockData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Search, Trash2 } from "lucide-react";
+import DashboardSidebar from "@/components/DashboardSidebar";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import axios from "axios";
 
 const SuperAdminDashboard = () => {
-  const { user } = useAuth();
-  const { mockInstitutions, mockStudents, generatePerformanceData } = useMockData();
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const performanceData = generatePerformanceData();
-  
-  // Calculate platform stats
-  const totalInstitutions = mockInstitutions.length;
-  const totalUsers = mockStudents.length;
-  const totalPlays = mockStudents.reduce((sum, student) => sum + student.totalPlays, 0);
-  const avgPlatformScore = Math.round(mockStudents.reduce((sum, student) => sum + student.averageScore, 0) / totalUsers);
+  const [stats, setStats] = useState<any>({});
+  const [users, setUsers] = useState<any[]>([]);
+  const [institutions, setInstitutions] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [searchUser, setSearchUser] = useState("");
+  const [searchInstitution, setSearchInstitution] = useState("");
+  const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
 
-  // Prepare chart data
-  const platformGrowthData = performanceData.dates.map((date, index) => ({
-    date,
-    users: Math.floor(Math.random() * 50) + (index * 2) + 100,
-    institutions: Math.floor(Math.random() * 5) + Math.floor(index / 3) + 10
-  }));
+  const navigate = useNavigate();
 
-  const institutionPerformanceData = mockInstitutions.map(inst => ({
-    name: inst.name.split(' ')[0],
-    students: inst.studentsCount,
-    avgScore: inst.averageScore
-  }));
+  // Stats
+  useEffect(() => {
+    fetch("http://192.168.0.116:8000/super-admin/stats")
+      .then((res) => res.json())
+      .then(setStats);
+  }, []);
+const adminid = localStorage.getItem("id");
+const [addata, setAddata] = useState<any>(null);
 
-  const topPerformersData = mockStudents
-    .sort((a, b) => b.averageScore - a.averageScore)
-    .slice(0, 10)
-    .map(student => ({
-      name: student.name.split(' ')[0],
-      score: student.averageScore,
-      institution: mockInstitutions.find(inst => inst.id === student.institutionId)?.name || 'Unknown'
-    }));
+useEffect(() => {
+  const getaddata = async () => {
+    try {
+      const res = await axios.get(`http://192.168.0.116:8000/admindata/${adminid}`);
+      setAddata(res.data); // ✅ set resolved data
+    } catch (err) {
+      console.error("Error fetching admin data:", err);
+    }
+  };
+  if (adminid) getaddata();
+}, [adminid]);
 
-  const userTypeDistribution = [
-    { name: 'Institutions', value: totalInstitutions, color: '#00D4FF' },
-    { name: 'Students', value: totalUsers, color: '#39FF14' },
-  ];
+  // Users
+  useEffect(() => {
+    fetch(`http://192.168.0.116:8000/super-admin/users?search=${searchUser}`)
+      .then((res) => res.json())
+      .then(setUsers);
+  }, [searchUser]);
 
-  // Filter functions
-  const filteredInstitutions = mockInstitutions.filter(inst =>
-    inst.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Institutions
+  useEffect(() => {
+    fetch(
+      `http://192.168.0.116:8000/super-admin/institutions?search=${searchInstitution}`
+    )
+      .then((res) => res.json())
+      .then(setInstitutions);
+  }, [searchInstitution]);
 
-  const filteredStudents = mockStudents.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Students of institution
+  const loadStudents = (id: number) => {
+    setSelectedInstitution(id);
+    fetch(`http://192.168.0.116:8000/super-admin/institution/${id}/students`)
+      .then((res) => res.json())
+      .then(setStudents);
+  };
+  // Delete handler
+  const handleDelete = async (type: "user" | "institution" | "student", id: number) => {
+    try {
+      await fetch(`http://192.168.0.116:8000/super-admin/${type}/${id}`, {
+        method: "DELETE",
+      });
+      if (type === "user") setUsers((prev) => prev.filter((u) => u.id !== id));
+      if (type === "institution") setInstitutions((prev) => prev.filter((i) => i.id !== id));
+      if (type === "student") setStudents((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error(`Failed to delete ${type}`, err);
+    }
+  };
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-hero">
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-gray-900 via-black to-purple-900 text-white">
         <DashboardSidebar />
-        
         <main className="flex-1 overflow-hidden">
-          {/* Header */}
-          <header className="border-b border-primary/20 bg-background/80 backdrop-blur-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-                    <Shield className="w-6 h-6 text-background" />
-                  </div>
-                  <div>
-                    <h1 className="font-orbitron text-2xl font-bold text-primary">
-                      Super Admin Dashboard
-                    </h1>
-                    <p className="text-muted-foreground">Platform Overview & Management</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </Button>
-                <Button className="bg-gradient-primary hover:shadow-glow gap-2">
-                  <Download className="w-4 h-4" />
-                  Export All Data
-                </Button>
-              </div>
-            </div>
-          </header>
+      <header className="border-b border-primary/30 bg-background/80 backdrop-blur-lg p-4 flex items-center justify-between">
+  {/* Left side: sidebar + title */}
+  <div className="flex items-center gap-4">
+    <SidebarTrigger />
+    <div>
+      <h1 className="font-orbitron text-3xl text-primary tracking-wide">
+        Super Admin Dashboard
+      </h1>
+      <p className="text-sm text-muted-foreground">
+        Super Admin: <span className="font-medium text-primary">{addata?.institution_name}</span>
+      </p>
+    </div>
+  </div>
 
-          <div className="p-6 space-y-6 overflow-y-auto h-[calc(100vh-80px)]">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-gradient-card border-primary/20 glow-effect">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Institutions</CardTitle>
-                  <Building className="h-4 w-4 text-secondary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary font-orbitron">{totalInstitutions}</div>
-                  <p className="text-xs text-muted-foreground">+2 this month</p>
-                </CardContent>
-              </Card>
+  {/* Right side (optional) → add avatar / logout button later */}
+</header>
 
-              <Card className="bg-gradient-card border-primary/20 glow-effect">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-accent" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary font-orbitron">{totalUsers}</div>
-                  <p className="text-xs text-muted-foreground">+12 this week</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-card border-primary/20 glow-effect">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Plays</CardTitle>
-                  <Trophy className="h-4 w-4 text-secondary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary font-orbitron">{totalPlays}</div>
-                  <p className="text-xs text-muted-foreground">All time</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-card border-primary/20 glow-effect">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Platform Average</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-accent" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary font-orbitron">{avgPlatformScore}</div>
-                  <p className="text-xs text-muted-foreground">Global score</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Platform Growth */}
-              <Card className="lg:col-span-2 bg-gradient-card border-primary/20">
+          <div className="p-6 space-y-8 overflow-y-auto h-[calc(100vh-80px)]">
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-400/40 shadow-lg hover:shadow-purple-500/30 transition">
                 <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">Platform Growth</CardTitle>
-                  <CardDescription>Users and institutions over time</CardDescription>
+                  <CardTitle>Total Institutions</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={platformGrowthData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="date" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
-                          border: '1px solid #00D4FF',
-                          borderRadius: '8px'
-                        }} 
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="users" 
-                        stroke="#00D4FF" 
-                        strokeWidth={3}
-                        name="Users"
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="institutions" 
-                        stroke="#39FF14" 
-                        strokeWidth={3}
-                        name="Institutions"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <CardContent className="text-4xl font-bold text-purple-400">
+                  {stats.totalInstitutions || 0}
                 </CardContent>
               </Card>
-
-              {/* User Distribution */}
-              <Card className="bg-gradient-card border-primary/20">
+              <Card className="bg-gradient-to-r from-indigo-600/20 to-pink-600/20 border border-indigo-400/40 shadow-lg hover:shadow-pink-500/30 transition">
                 <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">User Distribution</CardTitle>
-                  <CardDescription>Institutions vs Students</CardDescription>
+                  <CardTitle>Total Users</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={userTypeDistribution}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {userTypeDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
-                          border: '1px solid #8B5CF6',
-                          borderRadius: '8px'
-                        }} 
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {userTypeDistribution.map((entry, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span className="text-sm text-muted-foreground">{entry.name}</span>
-                        </div>
-                        <span className="text-sm font-medium text-primary">{entry.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                <CardContent className="text-4xl font-bold text-indigo-400">
+                  {stats.totalUsers || 0}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Institution Performance and Top Performers */}
+            {/* Users + Institutions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Institution Performance */}
-              <Card className="bg-gradient-card border-primary/20">
+              {/* Users */}
+              <Card className="bg-gradient-card border border-primary/20 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">Institution Performance</CardTitle>
-                  <CardDescription>Average scores by institution</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={institutionPerformanceData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="name" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1F2937', 
-                          border: '1px solid #8B5CF6',
-                          borderRadius: '8px'
-                        }} 
-                      />
-                      <Bar dataKey="avgScore" fill="#8B5CF6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Top Performers */}
-              <Card className="bg-gradient-card border-primary/20">
-                <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">Top Performers</CardTitle>
-                  <CardDescription>Highest scoring users across platform</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {topPerformersData.map((performer, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center justify-between p-3 bg-background/30 rounded-lg border border-primary/10"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-secondary rounded-full flex items-center justify-center">
-                            <span className="text-background font-bold text-sm">{index + 1}</span>
-                          </div>
-                          <div>
-                            <div className="font-medium text-primary">{performer.name}</div>
-                            <div className="text-xs text-muted-foreground">{performer.institution}</div>
-                          </div>
-                        </div>
-                        <div className="text-lg font-orbitron text-secondary">
-                          {performer.score}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search and Management */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Institutions List */}
-              <Card className="bg-gradient-card border-primary/20">
-                <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">All Institutions</CardTitle>
-                  <CardDescription>Manage registered institutions</CardDescription>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <CardTitle>All Users</CardTitle>
+                  <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search institutions..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search users..."
+                      value={searchUser}
+                      onChange={(e) => setSearchUser(e.target.value)}
                       className="pl-10 bg-background/50 border-primary/30"
                     />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {filteredInstitutions.map((institution) => (
-                      <div 
-                        key={institution.id} 
-                        className="flex items-center justify-between p-3 bg-background/30 rounded-lg border border-primary/10"
-                      >
-                        <div>
-                          <div className="font-medium text-primary">{institution.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {institution.studentsCount} students • Avg: {institution.averageScore}
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {users
+                      .filter((user) => user.role !== "super_admin")
+                      .map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-3 bg-background/40 rounded-lg border border-primary/20 hover:bg-background/60 transition cursor-pointer"
+                        >
+                          <div onClick={() => navigate(`/student-details/${user.id}`)}>
+                            <div className="font-medium text-primary">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
                           </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="hover:text-red-500"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete("user", user.id)}
+                                >
+                                  Yes, Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {institution.createdAt.toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Users List */}
-              <Card className="bg-gradient-card border-primary/20">
+              {/* Institutions */}
+              <Card className="bg-gradient-card border border-primary/20 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="font-orbitron text-primary">All Users</CardTitle>
-                  <CardDescription>Manage all platform users</CardDescription>
+                  <CardTitle>All Institutions</CardTitle>
+                  <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search institutions..."
+                      value={searchInstitution}
+                      onChange={(e) => setSearchInstitution(e.target.value)}
+                      className="pl-10 bg-background/50 border-primary/30"
+                    />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {filteredStudents.slice(0, 10).map((student) => (
-                      <div 
-                        key={student.id} 
-                        className="flex items-center justify-between p-3 bg-background/30 rounded-lg border border-primary/10"
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {institutions.map((inst) => (
+                      <div
+                        key={inst.id}
+                        className="flex items-center justify-between p-3 bg-background/40 rounded-lg border border-primary/20 hover:bg-background/60 transition"
                       >
-                        <div>
-                          <div className="font-medium text-primary">{student.name}</div>
-                          <div className="text-sm text-muted-foreground">{student.email}</div>
+                        <div
+                          onClick={() => loadStudents(inst.id)}
+                          className="cursor-pointer"
+                        >
+                          <div className="font-medium text-primary">
+                            {inst.institution_name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {inst.email}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-secondary">{student.averageScore}</div>
-                          <div className="text-xs text-muted-foreground">{student.totalPlays} plays</div>
-                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="hover:text-red-500"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Institution?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will also remove all related students.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete("institution", inst.id)}
+                              >
+                                Yes, Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Students of Institution */}
+            {selectedInstitution && (
+              <Card className="bg-gradient-card border border-primary/20 shadow-lg">
+                <CardHeader>
+                  <CardTitle>Students in Institution #{selectedInstitution}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {students.map((st) => (
+                      <div
+                        key={st.id}
+                        className="flex items-center justify-between p-3 bg-background/40 rounded-lg border border-primary/20 hover:bg-background/60 transition"
+                      >
+                        <div
+                          onClick={() => navigate(`/student-details/${st.id}`)}
+                          className="cursor-pointer"
+                        >
+                          <div className="font-medium text-primary">{st.name}</div>
+                          <div className="text-sm text-muted-foreground">{st.email}</div>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="hover:text-red-500"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Student?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete("student", st.id)}
+                              >
+                                Yes, Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>

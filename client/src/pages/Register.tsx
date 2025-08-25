@@ -39,7 +39,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       body.institutionName = formData.institutionName;
     }
 
-    const res = await fetch('http://192.168.0.108:8000/register', {
+    const res = await fetch('http://192.168.0.116:8000/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
