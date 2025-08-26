@@ -162,34 +162,38 @@ const InstitutionDashboard = () => {
     setQrForm({ plays: "", amount: "" });
   };
 
-  const handleGenerateQR = () => {
-    if (!qrFormStudent) return;
+const handleGenerateQR = async () => {
+  if (!qrFormStudent) return;
+
+  try {
+    const res = await axios.post("http://192.168.0.116:8000/vouchers", {
+      studentId: qrFormStudent.id,
+      institutionId: institutionId,
+      assignedPlays: Number(qrForm.plays),
+      amountPaid: Number(qrForm.amount) || 0,
+      expiresInMinutes: 60, // optional expiry
+    });
+
+    const voucher = res.data;
 
     setShowQRCode({
-      id: qrFormStudent.id,
       name: qrFormStudent.name,
-      email: qrFormStudent.email,
       type: "student",
-      assignedPlays: Number(qrForm.plays) || 0,
-      amountPaid: Number(qrForm.amount) || 0,
+      assignedPlays: voucher.assignedPlays,
+      amountPaid: voucher.amountPaid,
+      token: voucher.token, // ✅ pass token to QR
     });
 
     setQrFormStudent(null);
-  };
-
-  const totalStudents = students.length;
-  const totalPlaysUsed = students.reduce(
-    (sum, s) => sum + (s.total_plays || 0),
-    0
-  );
-  const activeStudents = students.filter((s) => {
-    const lastPlayed = s.last_played ? new Date(s.last_played) : null;
-    if (!lastPlayed) return false;
-    const daysSinceLastPlay = Math.floor(
-      (Date.now() - lastPlayed.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return daysSinceLastPlay <= 7;
-  }).length;
+  } catch (err) {
+    console.error("Error generating voucher:", err);
+    toast({
+      title: "Error",
+      description: "Failed to generate QR",
+      variant: "destructive",
+    });
+  }
+};
 
   // Institution details
   useEffect(() => {
@@ -269,7 +273,7 @@ const InstitutionDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {totalStudents}
+                    {/* {totalStudents} */}
                   </div>
                 </CardContent>
               </Card>
@@ -279,7 +283,7 @@ const InstitutionDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {totalPlaysUsed}
+                    {/* {totalPlaysUsed} */}
                   </div>
                 </CardContent>
               </Card>
@@ -289,7 +293,7 @@ const InstitutionDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {activeStudents}
+                    {/* {activeStudents} */}
                   </div>
                 </CardContent>
               </Card>

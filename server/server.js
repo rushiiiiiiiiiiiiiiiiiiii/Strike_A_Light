@@ -306,6 +306,105 @@ app.get("/students/:id", (req, res) => {
   });
 });
 
+const crypto = require("crypto");
+
+/* ================= VOUCHERS ================= */
+
+// Create voucher
+app.post("/vouchers", (req, res) => {
+  const { studentId, institutionId, assignedPlays, amountPaid, expiresInMinutes } = req.body;
+
+  if (!studentId || !institutionId || !assignedPlays) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  const token = crypto.randomBytes(16).toString("hex"); // secure random token
+  const expiresAt = expiresInMinutes
+    ? new Date(Date.now() + expiresInMinutes * 60 * 1000)
+    : null;
+
+  const sql = `
+    INSERT INTO vouchers (token, student_id, institution_id, assigned_plays, amount_paid, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+  db.query(sql, [token, studentId, institutionId, assignedPlays, amountPaid || 0, expiresAt], (err, result) => {
+    if (err) {
+      console.error("Error creating voucher:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({
+      id: result.insertId,
+      token,
+      assignedPlays,
+      amountPaid: amountPaid || 0,
+      expiresAt,
+    });
+  });
+});
+
+// Redeem voucher (machine endpoint)
+app.post("/vouchers/:token/redeem", (req, res) => {
+  const { token } = req.params;
+
+  // Use transaction for atomicity
+  db.beginTransaction((err) => {
+    if (err) return res.status(500).json({ error: "Transaction error" });
+
+    db.query("SELECT * FROM vouchers WHERE token = ? FOR UPDATE", [token], (err, rows) => {
+      if (err) {
+        return db.rollback(() => res.status(500).json({ error: "DB error" }));
+      }
+      if (!rows.length) {
+        return db.rollback(() => res.status(404).json({ error: "Voucher not found" }));
+      }
+
+      const voucher = rows[0];
+
+      // Validation
+      if (voucher.status !== "active") {
+        return db.rollback(() => res.status(400).json({ error: "Voucher not active" }));
+      }
+      if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
+        return db.rollback(() => res.status(410).json({ error: "Voucher expired" }));
+      }
+      if (voucher.used_plays >= voucher.assigned_plays) {
+        return db.rollback(() => res.status(409).json({ error: "No plays remaining" }));
+      }
+
+      // Update usage
+      const newUsed = voucher.used_plays + 1;
+      db.query("UPDATE vouchers SET used_plays = ? WHERE id = ?", [newUsed, voucher.id], (err2) => {
+        if (err2) {
+          return db.rollback(() => res.status(500).json({ error: "Failed to redeem" }));
+        }
+
+        db.commit((err3) => {
+          if (err3) {
+            return db.rollback(() => res.status(500).json({ error: "Commit failed" }));
+          }
+
+          res.json({
+            ok: true,
+            remainingPlays: voucher.assigned_plays - newUsed,
+          });
+        });
+      });
+    });
+  });
+});
+
+// Check voucher status
+app.get("/vouchers/:token", (req, res) => {
+  const { token } = req.params;
+  db.query("SELECT * FROM vouchers WHERE token = ?", [token], (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB error" });
+    if (!rows.length) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  });
+});
+
+
 /* ================= SERVER START ================= */
 app.listen(8000, () => {
   console.log("✅ Server running on PORT 8000");

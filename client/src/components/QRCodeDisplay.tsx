@@ -16,6 +16,7 @@ interface QRCodeDisplayProps {
     type: "individual" | "student";
     assignedPlays: number;
     amountPaid?: number;
+    token: string; // ✅ Added token
   };
 }
 
@@ -26,20 +27,15 @@ const QRCodeDisplay = ({ data }: QRCodeDisplayProps) => {
   useEffect(() => {
     const generateQR = async () => {
       try {
-        const qrData = JSON.stringify({
-          plays: data.assignedPlays,
-          name: data.name,
-          type: data.type,
-          amountPaid: data.amountPaid || 0,
-          timestamp: Date.now(),
-        });
+        // Encode token in QR
+        const qrData = JSON.stringify({ token: data.token });
 
         const url = await QRCode.toDataURL(qrData, {
           width: 600,
           margin: 2,
           color: {
-            dark: "#00D4FF",
-            light: "#FFFFFF", // light background for printing
+            dark: "#000000", // ✅ Black
+            light: "#FFFFFF", // ✅ White
           },
         });
 
