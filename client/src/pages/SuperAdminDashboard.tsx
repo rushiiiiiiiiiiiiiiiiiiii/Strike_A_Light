@@ -92,27 +92,26 @@ useEffect(() => {
     <SidebarProvider>
       <div className="flex w-full min-h-screen text-white bg-gradient-to-br from-gray-900 via-black to-purple-900">
         <DashboardSidebar />
-        <main className="flex-1 overflow-hidden">
-      <header className="flex items-center justify-between p-4 border-b border-primary/30 bg-background/80 backdrop-blur-lg">
-  {/* Left side: sidebar + title */}
-  <div className="flex items-center gap-4">
-    <SidebarTrigger />
-    <div>
-      <h1 className="text-3xl tracking-wide font-orbitron text-primary">
-        Super Admin Dashboard
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Super Admin: <span className="font-medium text-primary">{addata?.institution_name}</span>
-      </p>
+       <main className="flex flex-col flex-1">
+  {/* Header */}
+  <header className="flex items-center justify-between p-4 border-b border-primary/30 bg-background/80 backdrop-blur-lg">
+    <div className="flex items-center gap-4">
+      <SidebarTrigger />
+      <div>
+        <h1 className="text-3xl tracking-wide font-orbitron text-primary">
+          Super Admin Dashboard
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Super Admin: <span className="font-medium text-primary">{addata?.institution_name}</span>
+        </p>
+      </div>
     </div>
-  </div>
+  </header>
 
-  {/* Right side (optional) → add avatar / logout button later */}
-</header>
-
-          <div className="p-6 space-y-8 overflow-y-auto h-[calc(100vh-80px)]">
-            {/* Stats */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+  {/* Content */}
+  <div className="flex-1 p-6 space-y-8 overflow-y-auto">
+    {/* Stats */}
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Card className="transition border shadow-lg bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-purple-400/40 hover:shadow-purple-500/30">
                 <CardHeader>
                   <CardTitle>Total Institutions</CardTitle>

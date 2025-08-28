@@ -249,7 +249,7 @@ const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
       <div className="flex flex-col w-full min-h-screen lg:flex-row bg-gradient-hero">
         <DashboardSidebar />
 
-        <main className="flex-1 overflow-hidden">
+        <main className="flex flex-col flex-1">
           {/* Header */}
           <header className="sticky top-0 z-10 p-4 border-b border-primary/20 bg-background/80 backdrop-blur-lg">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -282,7 +282,7 @@ const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
           </header>
 
           {/* Stats */}
-          <div className="p-6 space-y-6 overflow-y-auto h-[calc(100vh-80px)]">
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <Card className="transition bg-gradient-card border-primary/20 hover:shadow-xl">
                 <CardHeader>

@@ -222,9 +222,9 @@ const IndividualDashboard = () => {
                 <div className="space-y-6">
   <div className="grid grid-cols-1 gap-4">
     <div className="flex flex-col">
-      <Label>Number of Plays</Label>
+      <Label className="pb-3">Number of Plays</Label>
       <Input
-        type="number"
+        type="text"
         value={plays}
         onChange={(e) => setPlays(Number(e.target.value))}
         min={1}
@@ -233,10 +233,10 @@ const IndividualDashboard = () => {
     <div className="flex flex-col">
       <Label>Amount Paid</Label>
       <Input
-        type="number"
+        type="text"
         value={amount}
         onChange={(e) => setAmount(Number(e.target.value))}
-        min={0}
+        // min={0}
       />
     </div>
   </div>
