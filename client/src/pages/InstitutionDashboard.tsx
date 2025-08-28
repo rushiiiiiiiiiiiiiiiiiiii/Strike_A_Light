@@ -43,7 +43,7 @@ const InstitutionDashboard = () => {
 
   const [students, setStudents] = useState<any[]>([]);
   const [data, setData] = useState<any>(null);
-
+  
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showQRCode, setShowQRCode] = useState<any>(null);
   const [qrFormStudent, setQrFormStudent] = useState<any>(null);
@@ -59,6 +59,11 @@ const InstitutionDashboard = () => {
 
   const [qrForm, setQrForm] = useState({ plays: "", amount: "" });
 
+  // 🔎 Search state
+
+const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
+
+
   const institutionId = localStorage.getItem("id");
 
   // Fetch students
@@ -69,6 +74,7 @@ const InstitutionDashboard = () => {
         `http://192.168.0.116:8000/students/${institutionId}`
       );
       setStudents(res.data);
+      console.log(res.data.length);
     } catch (error) {
       console.error("Error fetching students:", error);
       toast({
@@ -128,6 +134,15 @@ const InstitutionDashboard = () => {
       });
     }
   };
+  const totalPlaysUsed = 0;
+  const activeStudents = 0;
+
+  const handleSearchChange = (std: string, value: string) => {
+  setSearchTerms((prev) => ({
+    ...prev,
+    [std]: value,
+  }));
+};
 
   // Delete student
   const confirmRemoveStudent = (student: any) => {
@@ -162,38 +177,41 @@ const InstitutionDashboard = () => {
     setQrForm({ plays: "", amount: "" });
   };
 
-const handleGenerateQR = async () => {
-  if (!qrFormStudent) return;
+  const handleGenerateQR = async () => {
+    if (!qrFormStudent) return;
 
-  try {
-    const res = await axios.post("http://192.168.0.116:8000/vouchers", {
-      studentId: qrFormStudent.id,
-      institutionId: institutionId,
-      assignedPlays: Number(qrForm.plays),
-      amountPaid: Number(qrForm.amount) || 0,
-      expiresInMinutes: 60, // optional expiry
-    });
+    try {
+      const res = await axios.post("http://192.168.0.116:8000/vouchers", {
+  userId: qrFormStudent.id,               // ✅ unified userId
+  userType: "student",                    // ✅ must specify type
+  institutionId: institutionId,
+  name: qrFormStudent?.name,
+  assignedPlays: Number(qrForm.plays),
+  amountPaid: Number(qrForm.amount) || 0,
+  expiresInMinutes: 60
+});
 
-    const voucher = res.data;
 
-    setShowQRCode({
-      name: qrFormStudent.name,
-      type: "student",
-      assignedPlays: voucher.assignedPlays,
-      amountPaid: voucher.amountPaid,
-      token: voucher.token, // ✅ pass token to QR
-    });
+      const voucher = res.data;
 
-    setQrFormStudent(null);
-  } catch (err) {
-    console.error("Error generating voucher:", err);
-    toast({
-      title: "Error",
-      description: "Failed to generate QR",
-      variant: "destructive",
-    });
-  }
-};
+      setShowQRCode({
+        name: qrFormStudent.name,
+        type: "student",
+        assignedPlays: voucher.assignedPlays,
+        amountPaid: voucher.amountPaid,
+        token: voucher.token, // ✅ pass token to QR
+      });
+
+      setQrFormStudent(null);
+    } catch (err) {
+      console.error("Error generating voucher:", err);
+      toast({
+        title: "Error",
+        description: "Failed to generate QR",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Institution details
   useEffect(() => {
@@ -215,18 +233,17 @@ const handleGenerateQR = async () => {
     getdata();
   }, []);
 
-  // Group students by Standard & Division
+  
   const groupedStudents = students.reduce((acc, student) => {
-    const stdKey = `Std ${student.standard}`;
-    const divKey = `Div ${student.division || "-"}`;
+  const stdKey = `Std ${student.standard}`;
+  const divKey = `Div ${student.division || "-"}`;
 
-    if (!acc[stdKey]) acc[stdKey] = {};
-    if (!acc[stdKey][divKey]) acc[stdKey][divKey] = [];
-    acc[stdKey][divKey].push(student);
+  if (!acc[stdKey]) acc[stdKey] = {};
+  if (!acc[stdKey][divKey]) acc[stdKey][divKey] = [];
+  acc[stdKey][divKey].push(student);
 
-    return acc;
-  }, {} as Record<string, Record<string, any[]>>);
-
+  return acc;
+}, {} as Record<string, Record<string, any[]>>);
   return (
     <SidebarProvider>
       <div className="min-h-screen flex flex-col lg:flex-row w-full bg-gradient-hero">
@@ -273,7 +290,7 @@ const handleGenerateQR = async () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {/* {totalStudents} */}
+                    {students.length}
                   </div>
                 </CardContent>
               </Card>
@@ -283,7 +300,7 @@ const handleGenerateQR = async () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {/* {totalPlaysUsed} */}
+                    {totalPlaysUsed}
                   </div>
                 </CardContent>
               </Card>
@@ -293,80 +310,147 @@ const handleGenerateQR = async () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">
-                    {/* {activeStudents} */}
+                    {activeStudents}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Students Grouped */}
-            <Card className="bg-gradient-card border-primary/20">
-              <CardHeader>
-                <CardTitle className="font-orbitron text-xl text-primary">
-                  Students by Class
-                </CardTitle>
-                <CardDescription>
-                  Manage students grouped by Standard & Division
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="multiple" className="space-y-4">
-                  {Object.entries(groupedStudents).map(([std, divisions]) => (
-                    <AccordionItem key={std} value={std}>
-                      <AccordionTrigger className="font-bold text-primary">
-                        {std}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {Object.entries(divisions).map(([div, studs]) => (
-                          <div key={div} className="mb-4">
-                            <h4 className="font-semibold text-secondary mb-2">{div}</h4>
-                            <div className="space-y-2">
-                              {studs.map((student) => (
-                                <div
-                                  key={student.id}
-                                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-background/30 rounded-lg border border-primary/10 hover:border-primary/30 transition"
-                                >
-                                  <div>
-                                    <p className="font-medium text-primary">{student.name}</p>
-                                    <p className="text-sm text-muted-foreground">{student.email}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Roll {student.roll_number}
-                                    </p>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => openGenerateQR(student)}
-                                    >
-                                      <QrCode className="w-4 h-4" /> QR
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => navigate(`/students/${student.id}`)}
-                                    >
-                                      View
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => confirmRemoveStudent(student)}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </CardContent>
-            </Card>
+    {/* Students Grouped */}
+<Card className="bg-gradient-card border-primary/20">
+  <CardHeader>
+    <CardTitle className="font-orbitron text-xl text-primary">
+      Students by Class
+    </CardTitle>
+    <CardDescription>
+      Manage students grouped by Standard & Division
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <Accordion type="multiple" className="space-y-4">
+   {Object.entries(groupedStudents)
+  .sort(([stdA], [stdB]) => {
+    const numA = parseInt(stdA.replace("Std ", ""), 10);
+    const numB = parseInt(stdB.replace("Std ", ""), 10);
+    return numA - numB;
+  })
+  .map(([std, divisions]) => {
+    // Get current search term for this standard
+    const localSearch = searchTerms[std] || "";
+
+    // Filter students in this standard
+    const filteredDivisions = Object.entries(divisions).reduce(
+      (acc, [div, studs]) => {
+        const term = localSearch.toLowerCase();
+        const filteredStuds = term
+  ? studs.filter((s) =>
+      [
+        s.name,
+        s.email,
+        String(s.roll_number ?? s.rollNumber ?? ""),
+        `div ${s.division}`,
+      ]
+        .filter(Boolean)
+        .some((field) => field.toLowerCase().includes(term))
+    )
+  : studs;
+
+        if (filteredStuds.length > 0) acc[div] = filteredStuds;
+        return acc;
+      },
+      {} as Record<string, any[]>
+    );
+
+    return (
+      <AccordionItem key={std} value={std}>
+        <AccordionTrigger className="font-bold text-primary">
+          {std}
+        </AccordionTrigger>
+        <AccordionContent>
+          {/* 🔎 Local Search Input */}
+          <div className="mb-3">
+            <Input
+              placeholder={`Search within ${std}...`}
+              value={localSearch}
+              onChange={(e) => handleSearchChange(std, e.target.value)}
+              className="w-full sm:w-1/2"
+            />
+          </div>
+
+          {Object.entries(filteredDivisions)
+            .sort(([divA], [divB]) => divA.localeCompare(divB))
+            .map(([div, studs]) => (
+              <div key={div} className="mb-4">
+                <h4 className="font-semibold text-secondary mb-2">
+                  Division {div}
+                </h4>
+                <div className="space-y-2">
+                  {studs
+                    .sort(
+                      (a, b) =>
+                        (a.roll_number || 0) - (b.roll_number || 0)
+                    )
+                    .map((student) => (
+                      <div
+                        key={student.id}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-background/30 rounded-lg border border-primary/10 hover:border-primary/30 transition"
+                      >
+                        {/* Student Info */}
+                        <div>
+                          <p className="font-medium text-primary">
+                            {student.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {student.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Roll {student.roll_number}
+                          </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openGenerateQR(student)}
+                          >
+                            <QrCode className="w-4 h-4" /> QR
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              navigate(`/students/${student.id}`)
+                            }
+                          >
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() =>
+                              confirmRemoveStudent(student)
+                            }
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+        </AccordionContent>
+      </AccordionItem>
+    );
+  })}
+
+    </Accordion>
+  </CardContent>
+</Card>
+
           </div>
         </main>
       </div>
@@ -381,27 +465,37 @@ const handleGenerateQR = async () => {
             <Label>Student Name</Label>
             <Input
               value={newStudent.name}
-              onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+              onChange={(e) =>
+                setNewStudent({ ...newStudent, name: e.target.value })
+              }
             />
             <Label>Email</Label>
             <Input
               value={newStudent.email}
-              onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
+              onChange={(e) =>
+                setNewStudent({ ...newStudent, email: e.target.value })
+              }
             />
             <Label>Standard</Label>
             <Input
               value={newStudent.standard}
-              onChange={(e) => setNewStudent({ ...newStudent, standard: e.target.value })}
+              onChange={(e) =>
+                setNewStudent({ ...newStudent, standard: e.target.value })
+              }
             />
             <Label>Division</Label>
             <Input
               value={newStudent.division}
-              onChange={(e) => setNewStudent({ ...newStudent, division: e.target.value })}
+              onChange={(e) =>
+                setNewStudent({ ...newStudent, division: e.target.value })
+              }
             />
             <Label>Roll Number</Label>
             <Input
               value={newStudent.rollNumber}
-              onChange={(e) => setNewStudent({ ...newStudent, rollNumber: e.target.value })}
+              onChange={(e) =>
+                setNewStudent({ ...newStudent, rollNumber: e.target.value })
+              }
             />
             <Button
               onClick={handleAddStudent}
@@ -424,13 +518,17 @@ const handleGenerateQR = async () => {
             <Input
               type="number"
               value={qrForm.plays}
-              onChange={(e) => setQrForm({ ...qrForm, plays: parseInt(e.target.value) || 0 })}
+              onChange={(e) =>
+                setQrForm({ ...qrForm, plays: parseInt(e.target.value) || 0 })
+              }
             />
             <Label>Amount Paid</Label>
             <Input
               type="number"
               value={qrForm.amount}
-              onChange={(e) => setQrForm({ ...qrForm, amount: parseInt(e.target.value) || 0 })}
+              onChange={(e) =>
+                setQrForm({ ...qrForm, amount: parseInt(e.target.value) || 0 })
+              }
             />
             <Button
               onClick={handleGenerateQR}
@@ -464,10 +562,14 @@ const handleGenerateQR = async () => {
             <DialogTitle>Delete {deleteConfirmStudent?.name}?</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground">
-            Are you sure you want to remove this student? This action cannot be undone.
+            Are you sure you want to remove this student? This action cannot be
+            undone.
           </p>
           <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setDeleteConfirmStudent(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmStudent(null)}
+            >
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleConfirmDelete}>

@@ -157,7 +157,7 @@ const downloadReport = () => {
           <CardTitle>{user.name}</CardTitle>
           <CardDescription>
             {user.roll_number
-              ? `Roll ${user.roll_number} - Std ${user.standard || ""} ${user.division || ""}`
+              ? `Roll ${user.roll_number} - Std ${user.standard + "th" || ""} ${user.division  || ""}`
               : "Individual User"}
           </CardDescription>
         </CardHeader>

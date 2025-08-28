@@ -309,39 +309,73 @@ app.get("/students/:id", (req, res) => {
 const crypto = require("crypto");
 
 /* ================= VOUCHERS ================= */
-
 // Create voucher
 app.post("/vouchers", (req, res) => {
-  const { studentId, institutionId, assignedPlays, amountPaid, expiresInMinutes } = req.body;
+  const { userId, userType, institutionId, name, assignedPlays, amountPaid, expiresInMinutes } = req.body;
 
-  if (!studentId || !institutionId || !assignedPlays) {
-    return res.status(400).json({ error: "Missing required fields" });
+  // ✅ Validation
+  if (!userId || !userType || !assignedPlays || !name) {
+    return res.status(400).json({
+      error: "Missing required fields (userId, userType, assignedPlays, name)",
+    });
   }
 
-  const token = crypto.randomBytes(16).toString("hex"); // secure random token
+  const token = crypto.randomBytes(16).toString("hex");
   const expiresAt = expiresInMinutes
     ? new Date(Date.now() + expiresInMinutes * 60 * 1000)
     : null;
 
-  const sql = `
-    INSERT INTO vouchers (token, student_id, institution_id, assigned_plays, amount_paid, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-  db.query(sql, [token, studentId, institutionId, assignedPlays, amountPaid || 0, expiresAt], (err, result) => {
-    if (err) {
-      console.error("Error creating voucher:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
+  // ✅ Decide whether it's student or individual
+  let studentId = null;
+  let individualId = null;
 
-    res.json({
-      id: result.insertId,
+  if (userType === "student") {
+    studentId = userId;
+  } else if (userType === "individual") {
+    individualId = userId;
+  }
+
+  const sql = `
+    INSERT INTO vouchers 
+      (token, student_id, individual_id, institution_id, name, assigned_plays, used_plays, amount_paid, status, expires_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'active', ?, NOW(), NOW())
+  `;
+
+  db.query(
+    sql,
+    [
       token,
-      assignedPlays,
-      amountPaid: amountPaid || 0,
+      studentId,
+      individualId,
+      institutionId || null,
+      name,
+      parseInt(assignedPlays, 10),
+      parseFloat(amountPaid) || 0,
       expiresAt,
-    });
-  });
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("Error creating voucher:", err.sqlMessage);
+        return res.status(500).json({ error: "Database error", details: err.sqlMessage });
+      }
+
+      res.json({
+        id: result.insertId,
+        token,
+        userId,
+        userType,
+        institutionId: institutionId || null,
+        name,
+        assignedPlays,
+        usedPlays: 0,
+        amountPaid: amountPaid || 0,
+        status: "active",
+        expiresAt,
+      });
+    }
+  );
 });
+
 
 // Redeem voucher (machine endpoint)
 app.post("/vouchers/:token/redeem", (req, res) => {
